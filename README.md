@@ -1,4 +1,4 @@
-# combine
+# combinefiles
 
 A Rust library that allows you to combine separate files into one, contiguously.
 
