@@ -1,6 +1,8 @@
 use clap::Parser;
 use combinefiles::os_impl::file_size;
 use std::{path::PathBuf, process::exit, thread::available_parallelism};
+use tracing::Level;
+use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -29,6 +31,15 @@ fn main() {
         force_threaded,
         threads,
     } = Args::parse();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(Level::INFO.into())
+                .from_env_lossy(),
+        )
+        .without_time()
+        .init();
 
     let threads = threads.unwrap_or_else(|| available_parallelism().unwrap().get() as u16);
 

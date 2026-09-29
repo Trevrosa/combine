@@ -145,10 +145,10 @@ pub fn single(files: &[PathBuf], sizes: &[u64], output: impl AsRef<Path>) -> io:
     #[cfg(feature = "tracing")]
     let start = Instant::now();
 
-    for (n, file) in files.iter().enumerate() {
-        let mut file = File::open(file)?;
+    for (n, path) in files.iter().enumerate() {
+        let mut file = File::open(path)?;
         io::copy(&mut file, &mut final_file)?;
-        info!("{}/{len}: combining {file:?} ({} bytes)", n + 1, sizes[n]);
+        info!("{}/{len}: combining {path:?} ({} bytes)", n + 1, sizes[n]);
     }
 
     info!("combined {} files in {:?}", files.len(), start.elapsed());
