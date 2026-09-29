@@ -1,7 +1,7 @@
 use clap::Parser;
 use combinefiles::os_impl::file_size;
 use std::{path::PathBuf, process::exit, thread::available_parallelism};
-use tracing::Level;
+use tracing::{Level, error, warn};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Parser)]
@@ -27,7 +27,7 @@ const SMALL_FILE: u64 = 1024 * 1024 * 1024; // 1 GiB
 fn main() {
     let Args {
         output,
-        files,
+        mut files,
         force_threaded,
         threads,
     } = Args::parse();
@@ -43,9 +43,17 @@ fn main() {
 
     let threads = threads.unwrap_or_else(|| available_parallelism().unwrap().get() as u16);
 
+    files.retain(|f| {
+        let is_dir = f.is_dir();
+        if is_dir {
+            warn!("skipping {f:?} (is a directory)");
+        }
+        !is_dir
+    });
+
     for file in &files {
         if !file.try_exists().is_ok_and(|exists| exists) {
-            eprintln!("{file:?} does not exist!");
+            error!("{file:?} does not exist!");
             exit(1);
         }
     }
