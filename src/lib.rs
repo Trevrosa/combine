@@ -1,3 +1,17 @@
+//! A Rust library that allows you to combine separate files into one, contiguously.
+//!
+//! This crate offers two functions: [`threaded`] and [`single`].
+//!
+//! The multithreaded version should only be used when either:
+//! 1. There is a large enough number of files, or;
+//! 2. The total file size is large enough.
+//!
+//! This is because of the added cost of creating the threads and managing their inputs and outputs.
+//!
+//! # feature flags
+//! - `tracing` -- enables logging with a tracing subscriber
+//! - `cli` -- is required for compiling the example cli app
+
 #[cfg(feature = "tracing")]
 use std::time::Instant;
 use std::{
@@ -7,21 +21,40 @@ use std::{
     sync::Arc,
 };
 
-mod platforms;
-pub use platforms::{file_size, write_all_at};
+pub mod os_impl;
+use os_impl::write_all_at;
 
 mod log;
-#[cfg(feature = "tracing")]
-use tracing::{debug, error, info, warn};
+use log::{debug, info};
 
-/// Combine `files` into one file named `output_name` with a max number of threads `max_threads`.
+/// Combine a list of files, in order, to one file using multiple threads.
 ///
-/// `files` will be combined in order
+/// If the `max_threads` is greater than `files.len()`, use that as the number of threads
+///
+/// `files` and `sizes` must be the same length and be in the same order.
+///
+/// # Examples
+///
+/// ```should_panic
+/// # use std::path::PathBuf;
+/// # use combine::os_impl::file_size;
+/// // these will be combined into one file contiguously
+/// // so it is important that it's in order
+/// let files: Vec<PathBuf> = ["a-1.zip", "a-2.zip", "a-3.zip"].iter().map(PathBuf::from).collect();
+/// let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
+/// // combine with a max of 10 threads
+/// combine::threaded(files, sizes, "a.zip", 10);
+/// ```
+///
+/// # Errors
+///
+/// See [`std::io::Error`].
+#[allow(clippy::missing_panics_doc)]
 pub fn threaded(
     files: Vec<PathBuf>,
     sizes: Vec<u64>,
-    output: &Path,
-    max_threads: u16,
+    output: impl AsRef<Path>,
+    max_threads: u32,
 ) -> io::Result<()> {
     #[cfg(feature = "tracing")]
     let start = Instant::now();
@@ -32,8 +65,7 @@ pub fn threaded(
     };
 
     let files_len = files.len();
-    let threads =
-        max_threads.min(u16::try_from(files_len).expect("should not be that many chunks"));
+    let threads = max_threads.min(files_len.try_into().expect("not that many files"));
     info!("combining {files_len} files with {max_threads} ({threads}) threads");
 
     // (path, offset)
@@ -42,6 +74,7 @@ pub fn threaded(
     std::thread::spawn(move || {
         for (n, file) in files.into_iter().enumerate() {
             let offset = if n > 0 { sizes.iter().take(n).sum() } else { 0 };
+            debug!("sent ({file:?}, {offset})");
             tx.send((file, offset)).expect("channel cannot be closed");
         }
         drop(tx);
@@ -55,7 +88,7 @@ pub fn threaded(
             let Ok((path, initial_offset)) = rx.recv() else {
                 return Ok(());
             };
-            println!("[thread{i}] combining {path:?} at offset {initial_offset}");
+            info!("[thread{i}] combining {path:?} at offset {initial_offset}");
 
             let mut offset = initial_offset;
             let mut file = io::BufReader::new(File::open(&path).unwrap());
@@ -63,15 +96,14 @@ pub fn threaded(
                 let buf = file.fill_buf().unwrap();
                 let len = buf.len();
                 if len == 0 {
-                    println!("[thread{i}] done with {path:?}");
+                    info!("[thread{i}] done with {path:?}");
                     break;
                 }
                 write_all_at(&final_file, buf, &mut offset)?;
                 file.consume(len);
             }
 
-            let total_written = offset - initial_offset;
-            info!("copied {total_written} bytes from {path:?}");
+            info!("copied {} bytes from {path:?}", offset - initial_offset);
             Ok(())
         }));
     }
@@ -85,7 +117,26 @@ pub fn threaded(
     Ok(())
 }
 
-pub fn single(files: &[PathBuf], output: &Path) -> io::Result<()> {
+/// Combine a list of files, in order, to one file.
+///
+/// `files` and `sizes` must be the same length and be in the same order.
+///
+/// # Examples
+///
+/// ```should_panic
+/// # use std::path::PathBuf;
+/// # use combine::os_impl::file_size;
+/// // these will be combined into one file contiguously
+/// // so it is important that it's in order
+/// let files: Vec<PathBuf> = ["a-1.zip", "a-2.zip", "a-3.zip"].iter().map(PathBuf::from).collect();
+/// let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
+/// // combine into "a.zip"
+/// combine::single(&files, &sizes, "a.zip");
+/// ```
+/// # Errors
+///
+/// See [`std::io::Error`].
+pub fn single(files: &[PathBuf], sizes: &[u64], output: impl AsRef<Path>) -> io::Result<()> {
     let mut final_file = File::create_new(output)?;
 
     let len = files.len();
@@ -95,10 +146,9 @@ pub fn single(files: &[PathBuf], output: &Path) -> io::Result<()> {
     let start = Instant::now();
 
     for (n, file) in files.iter().enumerate() {
-        let size = file_size(&file);
         let mut file = File::open(file)?;
         io::copy(&mut file, &mut final_file)?;
-        info!("{}/{len}: combining {file:?} ({size} bytes)", n + 1);
+        info!("{}/{len}: combining {file:?} ({} bytes)", n + 1, sizes[n]);
     }
 
     info!("combined {} files in {:?}", files.len(), start.elapsed());

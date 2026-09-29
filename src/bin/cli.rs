@@ -1,5 +1,5 @@
 use clap::Parser;
-use combine::file_size;
+use combine::os_impl::file_size;
 use std::{path::PathBuf, process::exit, thread::available_parallelism};
 
 #[derive(Debug, Parser)]
@@ -37,17 +37,13 @@ fn main() {
             eprintln!("{file:?} does not exist!");
             exit(1);
         }
-
-        if file.is_dir() {
-            eprintln!("skipping {file:?} (is a directory)");
-        }
     }
 
     let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
 
     if force_threaded || sizes.iter().sum::<u64>() > SMALL_FILE {
-        combine::threaded(files, sizes, &output, threads).unwrap();
+        combine::threaded(files, sizes, &output, threads as u32).unwrap();
     } else {
-        combine::single(&files, &output).unwrap();
+        combine::single(&files, &sizes, &output).unwrap();
     }
 }
