@@ -3,10 +3,16 @@ use combine::file_size;
 use std::{path::PathBuf, process::exit, thread::available_parallelism};
 
 #[derive(Debug, Parser)]
+#[command(version, about)]
 struct Args {
     output: PathBuf,
+
     #[arg(required = true)]
     files: Vec<PathBuf>,
+
+    /// Force multithreaded mode
+    #[arg(short = 'F', long)]
+    force_threaded: bool,
 
     /// The max number of threads to use, if multithreaded
     #[arg(short, long)]
@@ -20,6 +26,7 @@ fn main() {
     let Args {
         output,
         files,
+        force_threaded,
         threads,
     } = Args::parse();
 
@@ -30,11 +37,15 @@ fn main() {
             eprintln!("{file:?} does not exist!");
             exit(1);
         }
+
+        if file.is_dir() {
+            eprintln!("skipping {file:?} (is a directory)");
+        }
     }
 
     let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
 
-    if sizes.iter().sum::<u64>() > SMALL_FILE {
+    if force_threaded || sizes.iter().sum::<u64>() > SMALL_FILE {
         combine::threaded(files, sizes, &output, threads).unwrap();
     } else {
         combine::single(&files, &output).unwrap();

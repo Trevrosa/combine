@@ -26,9 +26,9 @@ pub fn threaded(
     #[cfg(feature = "tracing")]
     let start = Instant::now();
 
-    let final_file = match File::create_new(output) {
-        Ok(f) => Arc::new(f),
-        Err(e) => return Err(e),
+    let final_file = {
+        let f = File::create_new(output)?;
+        Arc::new(f)
     };
 
     let files_len = files.len();
@@ -41,11 +41,7 @@ pub fn threaded(
 
     std::thread::spawn(move || {
         for (n, file) in files.into_iter().enumerate() {
-            let offset = if n > 0 {
-                sizes.iter().take(n).sum()
-            } else {
-                0
-            };
+            let offset = if n > 0 { sizes.iter().take(n).sum() } else { 0 };
             tx.send((file, offset)).expect("channel cannot be closed");
         }
         drop(tx);
