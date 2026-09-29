@@ -1,6 +1,6 @@
 //! A Rust library that allows you to combine separate files into one, contiguously.
 //!
-//! This crate offers two functions: [`threaded`] and [`single`].
+//! This crate offers two functions for combining files: [`threaded`] and [`single`], and utilities in [`os_impl`].
 //!
 //! The multithreaded version should only be used when either:
 //! 1. There is a large enough number of files, or;
@@ -37,13 +37,13 @@ use log::{debug, info};
 ///
 /// ```should_panic
 /// # use std::path::PathBuf;
-/// # use combine::os_impl::file_size;
+/// # use combinefiles::os_impl::file_size;
 /// // these will be combined into one file contiguously
 /// // so it is important that it's in order
 /// let files: Vec<PathBuf> = ["a-1.zip", "a-2.zip", "a-3.zip"].iter().map(PathBuf::from).collect();
 /// let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
 /// // combine with a max of 10 threads
-/// combine::threaded(files, sizes, "a.zip", 10);
+/// combinefiles::threaded(files, sizes, "a.zip", 10);
 /// ```
 ///
 /// # Errors
@@ -125,13 +125,13 @@ pub fn threaded(
 ///
 /// ```should_panic
 /// # use std::path::PathBuf;
-/// # use combine::os_impl::file_size;
+/// # use combinefiles::os_impl::file_size;
 /// // these will be combined into one file contiguously
 /// // so it is important that it's in order
 /// let files: Vec<PathBuf> = ["a-1.zip", "a-2.zip", "a-3.zip"].iter().map(PathBuf::from).collect();
 /// let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
 /// // combine into "a.zip"
-/// combine::single(&files, &sizes, "a.zip");
+/// combinefiles::single(&files, &sizes, "a.zip");
 /// ```
 /// # Errors
 ///

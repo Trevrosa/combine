@@ -1,5 +1,5 @@
 [package]
-name = "combine"
+name = "combinefiles"
 description = "combine files with "
 repository = "https://github.com/Trevrosa/combine"
 keywords = ["combine", "sparse", "file", "multithreaded"]

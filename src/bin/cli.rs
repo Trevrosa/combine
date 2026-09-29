@@ -1,5 +1,5 @@
 use clap::Parser;
-use combine::os_impl::file_size;
+use combinefiles::os_impl::file_size;
 use std::{path::PathBuf, process::exit, thread::available_parallelism};
 
 #[derive(Debug, Parser)]
@@ -42,8 +42,8 @@ fn main() {
     let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
 
     if force_threaded || sizes.iter().sum::<u64>() > SMALL_FILE {
-        combine::threaded(files, sizes, &output, threads as u32).unwrap();
+        combinefiles::threaded(files, sizes, &output, threads as u32).unwrap();
     } else {
-        combine::single(&files, &sizes, &output).unwrap();
+        combinefiles::single(&files, &sizes, &output).unwrap();
     }
 }
