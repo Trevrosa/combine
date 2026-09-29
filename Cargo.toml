@@ -1,11 +1,11 @@
 [package]
 name = "combinefiles"
-description = "combine files with "
+description = "combine files with one or many threads"
 repository = "https://github.com/Trevrosa/combinefiles"
 keywords = ["combine", "sparse", "file", "multithreaded"]
 categories = ["command-line-utilities", "filesystem"]
 license = "MIT"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 
 [features]

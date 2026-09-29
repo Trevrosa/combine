@@ -14,11 +14,11 @@ The multithreaded version uses seeked writes to create a sparse file that multip
 This repository also includes an example cli app using the library at [src/bin/cli.rs](https://github.com/Trevrosa/combine/blob/main/src/bin/cli.rs), and can be installed with:
 
 ```sh
-cargo install combine -F cli
+cargo install combinefiles -F cli
 ```
 or from source with:
 ```sh
-cargo install --git https://github.com/Trevrosa/combine -F cli
+cargo install --git https://github.com/Trevrosa/combinefiles -F cli
 ```
 
 The installed binary will be called `combine[EXE]`.
