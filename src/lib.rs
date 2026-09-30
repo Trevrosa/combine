@@ -75,8 +75,7 @@ pub fn threaded(
         for (n, file) in files.into_iter().enumerate() {
             let offset = if n > 0 { sizes.iter().take(n).sum() } else { 0 };
             debug!("sent ({file:?}, {offset})");
-            tx.send((file, offset, n + 1))
-                .expect("channel cannot be closed");
+            tx.send((file, offset)).expect("channel cannot be closed");
         }
         drop(tx);
     });
@@ -86,10 +85,10 @@ pub fn threaded(
         let rx = rx.clone();
         let final_file = final_file.clone();
         thread_handles.push(std::thread::spawn(move || -> io::Result<()> {
-            let Ok((path, initial_offset, _num)) = rx.recv() else {
+            let Ok((path, initial_offset)) = rx.recv() else {
                 return Ok(());
             };
-            info!("[thread{i}] #{_num}: combining {path:?} at offset {initial_offset}");
+            info!("[thread{i}] combining {path:?} at offset {initial_offset}");
 
             let mut offset = initial_offset;
             let mut file = io::BufReader::new(File::open(&path).unwrap());
