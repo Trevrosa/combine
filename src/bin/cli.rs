@@ -1,5 +1,5 @@
 use clap::Parser;
-use combinefiles::os_impl::file_size;
+use combinefiles::{Options, os_impl::file_size};
 use std::{path::PathBuf, process::exit, thread::available_parallelism};
 use tracing::{Level, error, warn};
 use tracing_subscriber::EnvFilter;
@@ -61,7 +61,7 @@ fn main() {
     let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
 
     if force_threaded || sizes.iter().sum::<u64>() > SMALL_FILE {
-        combinefiles::threaded(files, sizes, &output, threads as u32).unwrap();
+        combinefiles::threaded(files, sizes, &output, Options::threads(threads as u32)).unwrap();
     } else {
         combinefiles::single(&files, &sizes, &output).unwrap();
     }

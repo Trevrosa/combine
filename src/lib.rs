@@ -27,9 +27,59 @@ use os_impl::write_all_at;
 mod log;
 use log::{debug, info};
 
-/// Combine a list of files, in order, to one file using multiple threads.
+/// Parameters for use with [`threaded`].
 ///
-/// If the `max_threads` is greater than `files.len()`, use that as the number of threads
+/// # Examples
+///
+/// ```
+/// # use combinefiles::Options;
+/// // the fields are public
+/// let a = Options {
+///     max_threads: 10,
+///     buf_size: 8196,
+/// };
+///
+/// // using the default bufsize
+/// let b = Options::threads(10);
+///
+/// // the default bufsize is 8196 so this is true.
+/// assert_eq!(a, b);
+///
+/// // use all default values
+/// Options::default();
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Options {
+    /// The maximum number of threads to be used in combining the files.
+    ///
+    /// The actual number of threads is limited to `files.len()`.
+    pub max_threads: u32,
+
+    /// The size of the internal buffer of [`io::BufWriter`] to use when copying.
+    pub buf_size: usize,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            max_threads: 8,
+            buf_size: 8196,
+        }
+    }
+}
+
+impl Options {
+    /// Specify the max number of threads to use with the default bufsize.
+    #[must_use]
+    pub fn threads(max_threads: u32) -> Self {
+        Self {
+            max_threads,
+            ..Self::default()
+        }
+    }
+}
+
+/// Combine a list of files, in order, to one file using multiple threads.
 ///
 /// `files` and `sizes` must be the same length and be in the same order.
 ///
@@ -37,13 +87,13 @@ use log::{debug, info};
 ///
 /// ```should_panic
 /// # use std::path::PathBuf;
-/// # use combinefiles::os_impl::file_size;
+/// # use combinefiles::{os_impl::file_size, Options};
 /// // these will be combined into one file contiguously
 /// // so it is important that it's in order
 /// let files: Vec<PathBuf> = ["a-1.zip", "a-2.zip", "a-3.zip"].iter().map(PathBuf::from).collect();
 /// let sizes: Vec<u64> = files.iter().map(|f| file_size(f)).collect();
 /// // combine with a max of 10 threads
-/// combinefiles::threaded(files, sizes, "a.zip", 10);
+/// combinefiles::threaded(files, sizes, "a.zip", Options::threads(10));
 /// ```
 ///
 /// # Errors
@@ -54,7 +104,7 @@ pub fn threaded(
     files: Vec<PathBuf>,
     sizes: Vec<u64>,
     output: impl AsRef<Path>,
-    max_threads: u32,
+    options: Options,
 ) -> io::Result<()> {
     #[cfg(feature = "tracing")]
     let start = Instant::now();
@@ -63,6 +113,11 @@ pub fn threaded(
         let f = File::create_new(output)?;
         Arc::new(f)
     };
+
+    let Options {
+        max_threads,
+        buf_size,
+    } = options;
 
     let files_len = files.len();
     let threads = max_threads.min(files_len.try_into().expect("not that many files"));
@@ -89,7 +144,7 @@ pub fn threaded(
                 info!("[thread{i}] combining {path:?} at offset {initial_offset}");
 
                 let mut offset = initial_offset;
-                let mut file = io::BufReader::new(File::open(&path).unwrap());
+                let mut file = io::BufReader::with_capacity(buf_size, File::open(&path).unwrap());
                 loop {
                     let buf = file.fill_buf().unwrap();
                     let len = buf.len();
