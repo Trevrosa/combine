@@ -85,25 +85,24 @@ pub fn threaded(
         let rx = rx.clone();
         let final_file = final_file.clone();
         thread_handles.push(std::thread::spawn(move || -> io::Result<()> {
-            let Ok((path, initial_offset)) = rx.recv() else {
-                return Ok(());
-            };
-            info!("[thread{i}] combining {path:?} at offset {initial_offset}");
+            while let Ok((path, initial_offset)) = rx.recv() {
+                info!("[thread{i}] combining {path:?} at offset {initial_offset}");
 
-            let mut offset = initial_offset;
-            let mut file = io::BufReader::new(File::open(&path).unwrap());
-            loop {
-                let buf = file.fill_buf().unwrap();
-                let len = buf.len();
-                if len == 0 {
-                    info!("[thread{i}] done with {path:?}");
-                    break;
+                let mut offset = initial_offset;
+                let mut file = io::BufReader::new(File::open(&path).unwrap());
+                loop {
+                    let buf = file.fill_buf().unwrap();
+                    let len = buf.len();
+                    if len == 0 {
+                        info!("[thread{i}] done with {path:?}");
+                        break;
+                    }
+                    write_all_at(&final_file, buf, &mut offset)?;
+                    file.consume(len);
                 }
-                write_all_at(&final_file, buf, &mut offset)?;
-                file.consume(len);
-            }
 
-            info!("copied {} bytes from {path:?}", offset - initial_offset);
+                info!("copied {} bytes from {path:?}", offset - initial_offset);
+            }
             Ok(())
         }));
     }
@@ -146,9 +145,9 @@ pub fn single(files: &[PathBuf], sizes: &[u64], output: impl AsRef<Path>) -> io:
     let start = Instant::now();
 
     for (n, path) in files.iter().enumerate() {
+        info!("{}/{len}: combining {path:?} ({} bytes)", n + 1, sizes[n]);
         let mut file = File::open(path)?;
         io::copy(&mut file, &mut final_file)?;
-        info!("{}/{len}: combining {path:?} ({} bytes)", n + 1, sizes[n]);
     }
 
     info!("combined {} files in {:?}", files.len(), start.elapsed());
