@@ -131,7 +131,7 @@ pub fn threaded(
 
     std::thread::spawn(move || {
         for (n, file) in files.into_iter().enumerate() {
-            let offset = if n > 0 { sizes.iter().take(n).sum() } else { 0 };
+            let offset = sizes.iter().take(n).sum();
             debug!("sent ({file:?}, {offset})");
             tx.send((file, offset)).expect("channel cannot be closed");
         }
