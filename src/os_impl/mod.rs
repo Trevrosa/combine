@@ -35,9 +35,9 @@ pub fn file_size(p: &Path) -> u64 {
 #[cfg(unix)]
 pub fn write_all_at(writer: &File, buf: &[u8], offset: &mut u64) -> io::Result<()> {
     use std::os::unix::fs::FileExt;
-    let write = writer.write_all_at(buf, *offset);
+    writer.write_all_at(buf, *offset)?;
     *offset += buf.len() as u64;
-    write
+    Ok(())
 }
 
 /// Attempts to write an entire buffer starting from a given offset.

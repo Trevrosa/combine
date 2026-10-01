@@ -99,7 +99,10 @@ impl Options {
 /// # Errors
 ///
 /// See [`std::io::Error`].
-#[allow(clippy::missing_panics_doc)]
+///
+/// # Panics
+///
+/// Fails if `files.len()` is greater than [`u32::MAX`].
 pub fn threaded(
     files: Vec<PathBuf>,
     sizes: Vec<u64>,
@@ -144,9 +147,9 @@ pub fn threaded(
                 info!("[thread{i}] combining {path:?} at offset {initial_offset}");
 
                 let mut offset = initial_offset;
-                let mut file = io::BufReader::with_capacity(buf_size, File::open(&path).unwrap());
+                let mut file = io::BufReader::with_capacity(buf_size, File::open(&path)?);
                 loop {
-                    let buf = file.fill_buf().unwrap();
+                    let buf = file.fill_buf()?;
                     let len = buf.len();
                     if len == 0 {
                         info!("[thread{i}] done with {path:?}");
